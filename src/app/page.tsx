@@ -1,5 +1,5 @@
 "use client";
-
+ 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowRight, Check, Clipboard, Crown, DoorOpen, Link2, LockKeyhole, ShieldCheck, Sparkles, Swords, Users } from "lucide-react";
 import { ensureIdentity, getSupabase, rpc } from "@/lib/supabase";
