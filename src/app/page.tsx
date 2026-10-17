@@ -50,8 +50,9 @@ export default function Home() {
   const createRoom=()=>act(async()=>{const data=await rpc<{id:string;code:string}>("create_room",{p_nickname:saveNickname(),p_mode:mode});localStorage.setItem(ROOM_KEY,data.id);await refresh(data.id);});
   const joinRoom=()=>act(async()=>{const id=await rpc<string>("join_room",{p_code:joinCode,p_nickname:saveNickname()});localStorage.setItem(ROOM_KEY,id);await refresh(id);});
 
-  const me=state?.players.find(p=>p.user_id===state.user_id),opponent=state?.players.find(p=>p.user_id!==state.user_id);
-  const myTurn=state?.room.current_turn_user_id===state.user_id;
+  const userId=state?.user_id;
+  const me=state?.players.find(p=>p.user_id===userId),opponent=state?.players.find(p=>p.user_id!==userId);
+  const myTurn=!!state&&state.room.current_turn_user_id===state.user_id;
   const seconds=state?.room.deadline_at?Math.max(0,Math.ceil((new Date(state.room.deadline_at).getTime()-now)/1000)):0;
   const minimum=state?Math.max(500,state.room.current_price+100):500;
   const ready=!!state&&state.players.length===2&&state.players.every(p=>p.ready);
