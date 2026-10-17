@@ -15,6 +15,7 @@ export async function ensureIdentity() {
   if (session) return session.user.id;
   const { data, error } = await supabase.auth.signInAnonymously();
   if (error) throw error;
+  if (!data.user) throw new Error("Supabase n’a pas renvoyé d’utilisateur.");
   return data.user.id;
 }
 
