@@ -1,4 +1,4 @@
-import SpectatorClient from "./SpectatorClient";
+import SpectatorClient from "./SpectatorClient2";
 
 // Render this route on demand instead of serving a prerendered static page.
 export const dynamic = "force-dynamic";
