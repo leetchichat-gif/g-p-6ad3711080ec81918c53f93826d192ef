@@ -1,0 +1,27 @@
+name: Import Pokemon weights
+
+on:
+  workflow_dispatch:
+
+jobs:
+  import-weights:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Installer la dépendance du script
+        run: npm install --prefix /tmp/pokedraft-import @supabase/supabase-js@2
+
+      - name: Importer les poids
+        run: |
+          cp scripts/import-pokemon-weights.mjs /tmp/pokedraft-import/import-pokemon-weights.mjs
+          node /tmp/pokedraft-import/import-pokemon-weights.mjs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
