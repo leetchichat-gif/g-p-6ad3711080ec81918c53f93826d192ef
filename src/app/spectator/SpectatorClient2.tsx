@@ -30,6 +30,9 @@ type SpectatorState = {
     round_total: number;
     deadline_at: string | null;
     current_price: number | null;
+    admin_round: boolean;
+    next_admin_round: boolean;
+    next_admin_pokemon: SpectatorPokemon | null;
     current_pokemon: SpectatorPokemon | null;
   };
   players: Array<{ user_id: string; nickname: string; seat: number; ready: boolean; budget: number }>;
@@ -53,6 +56,7 @@ export default function SpectatorPage() {
   const [adminCode, setAdminCode] = useState("");
   const [query, setQuery] = useState("");
   const [choices, setChoices] = useState<PokemonChoice[]>([]);
+  const [adminRoundSelecting, setAdminRoundSelecting] = useState(false);
   const [identityReady, setIdentityReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -157,7 +161,7 @@ export default function SpectatorPage() {
     setLoading(true);
     setError("");
     try {
-      const found = await rpc<PokemonChoice[]>("search_spectator_pokemon", {
+      const found = await rpc<PokemonChoice[]>(adminRoundSelecting ? "search_admin_round_pokemon" : "search_spectator_pokemon", {
         p_room: state.room.id,
         p_query: query.trim(),
       });
@@ -190,6 +194,24 @@ export default function SpectatorPage() {
     }
   };
 
+  const startAdminRound = async (pokemonId: string) => {
+    if (!state) return;
+    setLoading(true);
+    setError("");
+    setNotice("");
+    try {
+      await rpc("admin_queue_round", { p_room: state.room.id, p_pokemon_id: pokemonId });
+      setChoices([]);
+      setAdminRoundSelecting(false);
+      await refresh(state.room.id);
+      setNotice("Prochaine manche programmée en mode administrateur : aucun indice et aucun timer.");
+    } catch (cause) {
+      setError(errorText(cause));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const leave = async () => {
     if (!roomId) return;
     setLoading(true);
@@ -199,6 +221,7 @@ export default function SpectatorPage() {
       setRoomId("");
       setState(null);
       setChoices([]);
+      setAdminRoundSelecting(false);
       setNotice("Tu as quitté le salon.");
     } catch (cause) {
       setError(errorText(cause));
@@ -304,7 +327,7 @@ export default function SpectatorPage() {
             {state.role === "spectator" ? (
               <section className="panel lobby history">
                 <h2 className="section-title">Devenir administrateur</h2>
-                <p className="hint">Le code donne le droit de changer le Pokémon du lot actif tant qu’aucune mise n’a été faite.</p>
+                <p className="hint">Le code donne le droit de changer le Pokémon du lot actif tant qu’aucune mise n’a été faite, et de programmer une manche spéciale dans le mode roue.</p>
                 <label className="field-label" htmlFor="admin-code">Code administrateur</label>
                 <input className="input" id="admin-code" type="password" inputMode="numeric" autoComplete="one-time-code" value={adminCode} maxLength={32} onChange={(event) => setAdminCode(event.target.value)} />
                 <button className="btn primary wide" onClick={() => void becomeAdmin()} disabled={loading || adminCode.length === 0}>Activer le mode administrateur</button>
@@ -313,18 +336,30 @@ export default function SpectatorPage() {
               <section className="panel lobby history">
                 <h2 className="section-title">Contrôler le lot actif</h2>
                 <p className="hint">Le Pokémon peut être remplacé aléatoirement ou par recherche tant que personne n’a encore misé. Les doublons dans cette partie sont refusés.</p>
+                {state.room.mode === "clue_roulette" && state.room.status === "active" && state.room.round_no < state.room.round_total && !state.room.next_admin_round && (
+                  <div className="notice">
+                    <b>Programmer une manche administrateur</b>
+                    <p className="hint">La manche en cours continue. La suivante utilisera le Pokémon de ton choix, sans indice ni timer.</p>
+                    <button className="btn primary" disabled={loading} onClick={() => { setAdminRoundSelecting(true); setChoices([]); setNotice("Recherche le Pokémon de la prochaine manche."); }}>
+                      Choisir le Pokémon de la prochaine manche
+                    </button>
+                  </div>
+                )}
+                {state.room.next_admin_round && <p className="notice"><b>La prochaine manche administrateur est programmée avec {state.room.next_admin_pokemon?.display_name ?? "le Pokémon choisi"} · sans indice · sans timer</b></p>}
+                {state.room.admin_round && <p className="notice"><b>Manche administrateur en cours · sans indice · sans timer</b></p>}
                 <div className="bid-actions">
                   <button className="btn secondary" disabled={loading || state.room.status !== "active"} onClick={() => void changePokemon(null)}><Shuffle size={15} style={{ display: "inline", verticalAlign: "-3px" }} /> Pokémon aléatoire</button>
                   <button className="btn secondary" disabled={loading} onClick={() => void refresh(state.room.id)}><RefreshCw size={15} style={{ display: "inline", verticalAlign: "-3px" }} /> Actualiser</button>
                 </div>
-                <label className="field-label" htmlFor="pokemon-search">Chercher par nom, numéro ou identifiant</label>
+                <label className="field-label" htmlFor="pokemon-search">{adminRoundSelecting ? "Choisir le Pokémon de la prochaine manche administrateur" : "Chercher par nom, numéro ou identifiant"}</label>
                 <div className="bid-controls">
                   <input className="input" id="pokemon-search" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void searchPokemon(); }} />
                   <button className="btn primary" disabled={loading || state.room.status !== "active"} onClick={() => void searchPokemon()}><Search size={16} /> Chercher</button>
                 </div>
+                {adminRoundSelecting && <button className="btn secondary" style={{ marginTop: 10 }} onClick={() => { setAdminRoundSelecting(false); setChoices([]); }}>Annuler</button>}
                 {choices.length > 0 && <div className="collection" style={{ marginTop: 14 }}>
                   {choices.map((pokemon) => (
-                    <button className="owned" key={pokemon.pokemon_id} onClick={() => void changePokemon(pokemon.pokemon_id)}>
+                    <button className="owned" key={pokemon.pokemon_id} disabled={loading} onClick={() => void (adminRoundSelecting ? startAdminRound(pokemon.pokemon_id) : changePokemon(pokemon.pokemon_id))}>
                       <img src={pokemon.sprite_url} alt="" />
                       <p>{pokemon.display_name}</p>
                       <small>N° {pokemon.national_dex} · {pokemon.form}</small>
