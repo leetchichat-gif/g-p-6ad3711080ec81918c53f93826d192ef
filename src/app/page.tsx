@@ -136,7 +136,7 @@ function OnePieceGame({state,now,loading,onDraw,onDecide}:{state:RoomState;now:n
     </div>
     {draft.phase==="draw"&&draft.is_drawer&&<button className="btn primary wide" disabled={loading} onClick={onDraw}>Tirer un personnage</button>}
     {draft.phase==="offering"&&draft.is_decision_player&&<div className="columns" style={{marginTop:14}}><button className="btn primary" disabled={loading} onClick={()=>onDecide(true)}>Je le prends</button><button className="btn secondary" disabled={loading} onClick={()=>onDecide(false)}>Je le refuse</button></div>}
-    <div style={{marginTop:20}}><h3 className="section-title">Personnages déjà tirés</h3>{draft.history.length?<div className="collection">{draft.history.map(item=><div className="owned" key={item.turn_no}><OnePiecePortrait name={item.name} label={item.name}/><p>{item.name}</p><small>{item.accepted?`Équipage de ${state.players.find(p=>p.user_id===item.owner_id)?.nickname??"un joueur"}`:"Refusé · écarté"}</small></div>)}</div>:<p className="hint">Les personnages apparaîtront ici après la décision.</p>}</div>
+    <div style={{marginTop:20}}><h3 className="section-title">Personnages déjà tirés</h3>{draft.history.length?<div className="collection">{draft.history.map(item=><div className="owned" key={item.turn_no}><OnePiecePortrait name={item.name} label={item.name}/><p>{item.name}</p><small>{item.accepted?`Équipage de ${state.players.find(p=>p.user_id===item.owner_id)?.nickname??"un joueur"}`:`Refusé · rejoint l’équipage de ${state.players.find(p=>p.user_id===item.drawer_user_id)?.nickname??"l’autre joueur"}`}</small></div>)}</div>:<p className="hint">Les personnages apparaîtront ici après la décision.</p>}</div>
   </section>;
 }
 
