@@ -44,7 +44,7 @@ export default function Home() {
   useEffect(()=>{
     if(!state||state.room.mode!=="one_piece_draft"||state.room.status!=="active"||state.one_piece?.phase!=="autopick"||!state.one_piece.autopick_at)return;
     const id=state.room.id,at=new Date(state.one_piece.autopick_at).getTime();let sent=false;
-    const timer=window.setInterval(()=>{if(!sent&&Date.now()>=at){sent=true;void rpc("one_piece_autopick",{p_room:id}).then(()=>refresh(id)).catch(()=>void refresh(id));}},350);
+    const timer=window.setInterval(()=>{if(!sent&&Date.now()>=at){sent=true;void rpc("one_piece_autopick",{p_room:id}).then(()=>refresh(id)).catch(e=>{setError(errorText(e));void refresh(id);});}},350);
     return()=>clearInterval(timer);
   },[state?.room.id,state?.room.mode,state?.room.status,state?.one_piece?.phase,state?.one_piece?.autopick_at,refresh]);
 
