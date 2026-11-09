@@ -17,7 +17,7 @@ export default function Home() {
   const refresh=useCallback(async(roomId?:string)=>{
     const id=roomId??localStorage.getItem(ROOM_KEY)??undefined;if(!id)return;
     try{const base=await rpc<RoomState>("get_room_state",{p_room:id});
-      const value=base.room.mode==="one_piece_draft"?{...base,one_piece:await rpc<NonNullable<RoomState["one_piece"]>>("get_one_piece_state",{p_room:id})}:base;
+      const value=base.room.mode==="one_piece_draft"&&base.room.status!=="waiting"?{...base,one_piece:await rpc<NonNullable<RoomState["one_piece"]>>("get_one_piece_state",{p_room:id})}:base.room.mode==="one_piece_draft"?{...base,one_piece:null}:base;
       const history=await rpc<AuctionResult[]>("get_room_results",{p_room:id});setResults(history);setState(value);setBid(Math.max(500,value.room.current_price+100));localStorage.setItem(ROOM_KEY,id);}
     catch(e){if(roomId)setError(errorText(e));else localStorage.removeItem(ROOM_KEY);}
   },[]);
