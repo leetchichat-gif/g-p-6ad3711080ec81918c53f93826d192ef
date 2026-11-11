@@ -6,6 +6,7 @@ type JikanCharacter = {
     webp?: { image_url?: string | null; small_image_url?: string | null };
   };
 };
+type DemonSlayerApiCharacter = { name?: string; img?: string | null; image?: string | null };
 
 const aliases: Record<string, string[]> = {
   tanjirokamado: ["Tanjiro Kamado", "Tanjirou Kamado", "Kamado Tanjiro"],
@@ -80,6 +81,34 @@ async function searchJikan(search: string) {
   return [];
 }
 
+async function searchDemonSlayerApi(search: string) {
+  try {
+    const response = await fetch(
+      `https://www.demonslayer-api.com/api/v1/characters?name=${encodeURIComponent(search)}`,
+      { next: { revalidate: 86400 }, headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8000) },
+    );
+    if (!response.ok) return null;
+    const payload = await response.json() as unknown;
+    const rows: DemonSlayerApiCharacter[] = Array.isArray(payload)
+      ? payload
+      : payload && typeof payload === "object"
+        ? (() => {
+            const value = payload as { content?: unknown; data?: unknown; character?: unknown };
+            const nested = value.content ?? value.data ?? value.character;
+            return Array.isArray(nested) ? nested as DemonSlayerApiCharacter[]
+              : nested && typeof nested === "object" ? [nested as DemonSlayerApiCharacter]
+                : [payload as DemonSlayerApiCharacter];
+          })()
+        : [];
+    const exact = rows.find((character) => normalized(character.name ?? "") === normalized(search));
+    const match = exact ?? rows[0];
+    const imageUrl = match?.img ?? match?.image;
+    return typeof imageUrl === "string" && /^https:\/\//i.test(imageUrl) ? imageUrl : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(request: Request) {
   const name = new URL(request.url).searchParams.get("name")?.trim();
   if (!name || name.length > 100) {
@@ -88,6 +117,15 @@ export async function GET(request: Request) {
 
   const searches = aliases[normalized(name)] ?? [name];
   for (const search of searches) {
+    // Prefer the dedicated Demon Slayer catalog; unlike the generic anime search,
+    // it serves this series' portraits directly and avoids its burst rate limit.
+    const directImage = await searchDemonSlayerApi(search);
+    if (directImage) {
+      return Response.json({ image_url: directImage }, {
+        headers: { "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800" },
+      });
+    }
+
     const rows = await searchJikan(search);
     const usable = rows.filter((character) => {
       const image = imageOf(character);
