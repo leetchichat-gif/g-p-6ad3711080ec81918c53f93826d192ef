@@ -5,19 +5,20 @@ type JikanCharacter = {
 };
 
 const aliases: Record<string, string[]> = {
-  tanjirokamado: ["Tanjiro Kamado", "Kamado Tanjiro"],
+  tanjirokamado: ["Tanjiro Kamado", "Tanjirou Kamado", "Kamado Tanjiro"],
   yoriichitsugikuni: ["Yoriichi Tsugikuni", "Tsugikuni Yoriichi"],
   sakonjiurokodaki: ["Sakonji Urokodaki", "Urokodaki Sakonji"],
   jigorokuwajima: ["Jigoro Kuwajima", "Kuwajima Jigoro"],
-  muichirotokito: ["Muichiro Tokito", "Tokito Muichiro"],
-  kyojurorengoku: ["Kyojuro Rengoku", "Rengoku Kyojuro"],
+  muichirotokito: ["Muichiro Tokito", "Muichirou Tokitou", "Tokito Muichiro"],
+  kyojurorengoku: ["Kyojuro Rengoku", "Kyoujurou Rengoku", "Rengoku Kyojuro"],
+  giyutomioka: ["Giyu Tomioka", "Giyuu Tomioka", "Tomioka Giyu"],
   kyogai: ["Kyogai", "Kyogai Tsuzumi Demon"],
   handdemon: ["Hand Demon", "Temari Demon"],
   swampdemon: ["Swamp Demon", "沼の鬼"],
 };
 
 function normalized(value: string) {
-  return value.toLocaleLowerCase().replace(/[^a-z0-9]/g, "");
+  return value.toLocaleLowerCase().replace(/ou/g, "o").replace(/[^a-z0-9]/g, "");
 }
 
 export async function GET(request: Request) {
@@ -31,19 +32,23 @@ export async function GET(request: Request) {
     try {
       const response = await fetch(
         `https://api.jikan.moe/v4/characters?q=${encodeURIComponent(search)}&limit=10`,
-        { next: { revalidate: 86400 } },
+        { next: { revalidate: 86400 }, headers: { Accept: "application/json", "User-Agent": "PokeDraft character portraits" } },
       );
       if (!response.ok) continue;
       const payload = await response.json() as { data?: JikanCharacter[] };
-      const match = payload.data?.find((character) => {
+      const rows = payload.data ?? [];
+      const exact = rows.find((character) => {
         const names = [character.name, ...(character.nicknames ?? [])]
           .filter((value): value is string => Boolean(value));
         return names.some((candidate) => normalized(candidate) === normalized(search))
           && typeof character.images?.jpg?.image_url === "string"
           && character.images.jpg.image_url.startsWith("https://");
       });
+      // Jikan sometimes returns the same character with another romanization.
+      // Since the query is already the curated full character name, its first image is the safe fallback.
+      const match = exact ?? rows.find((character) => typeof character.images?.jpg?.image_url === "string");
       const imageUrl = match?.images?.jpg?.image_url;
-      if (imageUrl) {
+      if (typeof imageUrl === "string" && imageUrl.startsWith("https://")) {
         return Response.json({ image_url: imageUrl }, {
           headers: { "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800" },
         });
@@ -55,4 +60,3 @@ export async function GET(request: Request) {
 
   return Response.json({ image_url: null }, { headers: { "Cache-Control": "public, max-age=3600" } });
 }
-
