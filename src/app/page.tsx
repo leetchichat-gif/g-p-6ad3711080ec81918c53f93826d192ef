@@ -147,5 +147,5 @@ function CharacterDraftGame({state,draft,now,loading,universe,onDraw,onDecide}:{
 function CharacterPortrait({universe,name,label}:{universe:"one_piece"|"demon_slayer";name:string;label:string}){
   const [image,setImage]=useState("");
   useEffect(()=>{let cancelled=false;setImage("");const route=universe==="one_piece"?"one-piece-image":"demon-slayer-image";fetch(`/api/${route}?name=${encodeURIComponent(name)}`).then(response=>response.ok?response.json():null).then(data=>{if(!cancelled&&typeof data?.image_url==="string")setImage(data.image_url);}).catch(()=>{});return()=>{cancelled=true;};},[universe,name]);
-  return image?<img src={image} alt={label} loading="lazy" style={{display:"block",width:"100%",height:170,objectFit:"contain",margin:"8px auto"}}/>:<div role="img" aria-label={label} style={{display:"grid",placeItems:"center",height:170,fontSize:48}}>{universe==="one_piece"?"🏴‍☠️":"⚔️"}</div>;
+  return image?<img src={image} alt={label} loading="lazy" referrerPolicy="no-referrer" onError={()=>setImage("")} style={{display:"block",width:"100%",height:170,objectFit:"contain",margin:"8px auto"}}/>:<div role="img" aria-label={label} style={{display:"grid",placeItems:"center",height:170,fontSize:48}}>{universe==="one_piece"?"🏴‍☠️":"⚔️"}</div>;
 }
