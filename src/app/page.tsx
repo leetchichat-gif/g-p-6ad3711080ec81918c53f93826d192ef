@@ -150,7 +150,8 @@ function CharacterDraftGame({state,draft,now,loading,universe,onDraw,onDecide}:{
 }
 
 function CharacterPortrait({universe,name,label}:{universe:"one_piece"|"demon_slayer"|"dragon_ball";name:string;label:string}){
-  const [image,setImage]=useState("");
-  useEffect(()=>{let cancelled=false;setImage("");const route=universe==="one_piece"?"one-piece-image":universe==="demon_slayer"?"demon-slayer-image":"dragon-ball-image";fetch(`/api/${route}?name=${encodeURIComponent(name)}`).then(response=>response.ok?response.json():null).then(data=>{if(!cancelled&&typeof data?.image_url==="string")setImage(data.image_url);}).catch(()=>{});return()=>{cancelled=true;};},[universe,name]);
-  return image?<img src={image} alt={label} loading="lazy" referrerPolicy="no-referrer" onError={()=>setImage("")} style={{display:"block",width:"100%",height:170,objectFit:"contain",margin:"8px auto"}}/>:<div role="img" aria-label={label} style={{display:"grid",placeItems:"center",height:170,fontSize:48}}>{universe==="one_piece"?"🏴‍☠️":universe==="demon_slayer"?"⚔️":"🐉"}</div>;
+  const [images,setImages]=useState<string[]>([]),[imageIndex,setImageIndex]=useState(0);
+  useEffect(()=>{let cancelled=false;setImages([]);setImageIndex(0);const route=universe==="one_piece"?"one-piece-image":universe==="demon_slayer"?"demon-slayer-image":"dragon-ball-image";fetch(`/api/${route}?name=${encodeURIComponent(name)}`).then(response=>response.ok?response.json():null).then(data=>{if(cancelled)return;const candidates=Array.isArray(data?.image_urls)?data.image_urls.filter((value:unknown):value is string=>typeof value==="string"):[];if(typeof data?.image_url==="string")candidates.unshift(data.image_url);setImages([...new Set(candidates)]);}).catch(()=>{});return()=>{cancelled=true;};},[universe,name]);
+  const image=images[imageIndex];
+  return image?<img src={image} alt={label} loading="lazy" referrerPolicy="no-referrer" onError={()=>setImageIndex(index=>index+1)} style={{display:"block",width:"100%",height:170,objectFit:"contain",margin:"8px auto"}}/>:<div role="img" aria-label={label} style={{display:"grid",placeItems:"center",height:170,fontSize:48}}>{universe==="one_piece"?"🏴‍☠️":universe==="demon_slayer"?"⚔️":"🐉"}</div>;
 }
