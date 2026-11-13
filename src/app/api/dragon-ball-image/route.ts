@@ -4,6 +4,7 @@ type JikanCharacter = {
   nicknames?: string[];
   images?: { jpg?: { image_url?: string | null }; webp?: { image_url?: string | null } };
 };
+type FandomPage = { title?: string; thumbnail?: { source?: string } };
 
 const aliases: Record<string, string[]> = {
   masterroshi: ["Master Roshi", "Muten Roshi", "Kame-Sennin"],
@@ -32,6 +33,16 @@ const aliases: Record<string, string[]> = {
   marcarita: ["Marcarita", "Marcarita Dragon Ball"],
   awamo: ["Awamo", "Awamo Dragon Ball"],
   campari: ["Campari", "Camparri"],
+  dabra: ["Dabura", "Dabra"],
+  oldkai: ["Elder Kai", "Old Kai"],
+  zamasu: ["Zamasu"],
+  nappa: ["Nappa"],
+  puar: ["Puar"],
+  yajirobe: ["Yajirobe"],
+  caulifla: ["Caulifla"],
+  hit: ["Hit", "Hit Dragon Ball"],
+  kale: ["Kale"],
+  champa: ["Champa"],
 };
 
 function normalized(value: string) {
@@ -73,6 +84,39 @@ async function dragonBallImages(name: string) {
   }
 }
 
+async function fandomImages(name: string) {
+  try {
+    const query = new URLSearchParams({
+      action: "query",
+      format: "json",
+      formatversion: "2",
+      generator: "search",
+      gsrsearch: name,
+      gsrnamespace: "0",
+      gsrlimit: "8",
+      prop: "pageimages",
+      piprop: "thumbnail",
+      pithumbsize: "600",
+      redirects: "1",
+    });
+    const response = await fetch(`https://dragonball.fandom.com/api.php?${query.toString()}`, {
+      next: { revalidate: 86400 },
+      headers: { Accept: "application/json", "User-Agent": "PokeDraft/1.0 (character portraits)" },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) return [];
+    const payload = await response.json() as { query?: { pages?: FandomPage[] | Record<string, FandomPage> } };
+    const raw = payload.query?.pages;
+    const pages: FandomPage[] = Array.isArray(raw) ? raw : raw ? Object.values(raw) : [];
+    const exact = pages.filter((page) => normalized(page.title ?? "") === normalized(name));
+    const ordered = [...exact, ...pages.filter((page) => !exact.includes(page))];
+    return [...new Set(ordered.map((page) => page.thumbnail?.source)
+      .filter((image): image is string => typeof image === "string" && /^https:\/\//i.test(image)))];
+  } catch {
+    return [];
+  }
+}
+
 async function jikanImages(name: string) {
   try {
     const response = await fetch(`https://api.jikan.moe/v4/characters?q=${encodeURIComponent(name)}&limit=10`, {
@@ -104,6 +148,7 @@ export async function GET(request: Request) {
   const candidates: string[] = [];
   for (const search of aliases[normalized(name)] ?? [name]) {
     candidates.push(...await dragonBallImages(search));
+    candidates.push(...await fandomImages(search));
     candidates.push(...await jikanImages(search));
     if (candidates.length >= 4) break;
   }
