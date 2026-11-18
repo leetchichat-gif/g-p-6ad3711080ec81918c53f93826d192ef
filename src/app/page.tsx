@@ -152,6 +152,7 @@ function OnePieceAuctionGame({state,auction,loading,onBid,onPass}:{state:RoomSta
   const leader=state.players.find(player=>player.user_id===auction.high_bidder_id);
   const autopickPlayer=state.players.find(player=>player.user_id===auction.autopick_user_id);
   const currentTeam=auction.teams.find(team=>team.user_id===state.user_id);
+  const orderedTeams=[...auction.teams].sort((a,b)=>Number(b.user_id===state.user_id)-Number(a.user_id===state.user_id));
   const introVideo=auction.current_character?.id==="crocodile"?"/videos/one-piece/crocodile.mp4":auction.current_character?.id==="luffy"?"/videos/one-piece/luffy.mp4":auction.current_character?.id==="shanks"?"/videos/one-piece/shanks.mp4":auction.current_character?.id==="roger"?"/videos/one-piece/roger.mp4":null;
   useEffect(()=>{setIntroFinished(!introVideo);},[auction.auction_no,introVideo]);
   const teamCount=currentTeam?.characters.length??0;
@@ -174,6 +175,7 @@ function OnePieceAuctionGame({state,auction,loading,onBid,onPass}:{state:RoomSta
       <div className="columns" style={{marginTop:18}}>{auction.teams.map(team=><article className="option" key={team.user_id}><div className="history-head"><h3 className="section-title">Équipage de {team.nickname}</h3><span className="pill">{team.characters.length}/5</span></div>{team.characters.length?<div className="collection">{team.characters.map(character=><div className="owned" key={character.id}><CharacterPortrait universe="one_piece" name={character.search_name??character.name} label={character.name}/><p>{character.name}</p><small>{money.format(character.price)} dépensés</small></div>)}</div>:<p className="hint">Pas encore de personnage remporté.</p>}</article>)}</div>
     </>}
     <div style={{marginTop:20}}><h3 className="section-title">Résultats des enchères</h3>{auction.history.length?<div className="collection">{[...auction.history].reverse().map(item=><div className="owned" key={item.auction_no}><CharacterPortrait universe="one_piece" name={item.search_name??item.name} label={item.name}/><p>{item.name}</p><small>{item.owner_name} · {money.format(item.price)}</small></div>)}</div>:<p className="hint">Les personnages adjugés apparaîtront ici.</p>}</div>
+    <div className="columns" style={{marginTop:18}}>{orderedTeams.map(team=><article className="option" key={team.user_id}><div className="history-head"><div><h3 className="section-title">Équipage de {team.nickname}{team.user_id===state.user_id?" (vous)":""}</h3><b className="budget">{money.format(team.budget)} restants</b></div><span className="pill">{team.characters.length}/5</span></div>{team.characters.length?<div className="collection">{team.characters.map(character=><div className="owned" key={character.id}><CharacterPortrait universe="one_piece" name={character.search_name??character.name} label={character.name}/><p>{character.name}</p><small>{money.format(character.price)} dépensés</small></div>)}</div>:<p className="hint">Pas encore de personnage pour le moment.</p>}</article>)}</div>
   </section>;
 }
 
