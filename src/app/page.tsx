@@ -144,6 +144,7 @@ function errorText(e:unknown){return e instanceof Error?e.message:"Une erreur es
 
 function OnePieceAuctionGame({state,auction,loading,onBid,onPass}:{state:RoomState;auction:NonNullable<RoomState["one_piece_auction"]>;loading:boolean;onBid:(amount:number)=>void;onPass:()=>void}){
   const [amount,setAmount]=useState(10);
+  const [introFinished,setIntroFinished]=useState(false);
   useEffect(()=>{setAmount(auction.current_bid===0?10:auction.current_bid+10);},[auction.auction_no,auction.current_bid]);
   const me=state.players.find(player=>player.user_id===state.user_id);
   const opponent=state.players.find(player=>player.user_id!==state.user_id);
@@ -151,6 +152,8 @@ function OnePieceAuctionGame({state,auction,loading,onBid,onPass}:{state:RoomSta
   const leader=state.players.find(player=>player.user_id===auction.high_bidder_id);
   const autopickPlayer=state.players.find(player=>player.user_id===auction.autopick_user_id);
   const currentTeam=auction.teams.find(team=>team.user_id===state.user_id);
+  const introVideo=auction.current_character?.id==="crocodile"?"/videos/one-piece/crocodile.mp4":auction.current_character?.id==="luffy"?"/videos/one-piece/luffy.mp4":auction.current_character?.id==="shanks"?"/videos/one-piece/shanks.mp4":auction.current_character?.id==="roger"?"/videos/one-piece/roger.mp4":null;
+  useEffect(()=>{setIntroFinished(!introVideo);},[auction.auction_no,introVideo]);
   const teamCount=currentTeam?.characters.length??0;
   const maximumBid=Math.max(0,(me?.budget??0)-Math.max(4-teamCount,0)*10);
   const minimumBid=auction.current_bid===0?10:auction.current_bid+10;
@@ -158,7 +161,9 @@ function OnePieceAuctionGame({state,auction,loading,onBid,onPass}:{state:RoomSta
   return <section className="panel history">
     <div className="history-head"><div><div className="eyebrow">🏴‍☠️ One Piece · enchères publiques</div><h2 className="section-title">Personnage {auction.auction_no}/10</h2></div><span className="pill">{auction.phase==="autopick"?"Attribution auto · 5 s":"Mises sans timer"}</span></div>
     {auction.phase==="finished"?<div className="notice"><b>Enchères terminées !</b><p>Chaque joueur a constitué son équipage de cinq personnages.</p></div>:<>
+      {auction.current_character&&introVideo&&!introFinished&&<div className="pokemon-card" style={{margin:"16px 0",textAlign:"center",padding:16}}><p className="hint">Extrait d’entrée de {auction.current_character.name} · le lecteur peut demander un clic sur ▶ pour démarrer le son.</p><video key={introVideo} src={introVideo} controls autoPlay playsInline onEnded={()=>setIntroFinished(true)} onError={()=>setIntroFinished(true)} style={{display:"block",width:"100%",maxHeight:420,margin:"0 auto",borderRadius:14,background:"#050914"}}/></div>}
       {auction.current_character&&<div className="pokemon-card" style={{margin:"16px 0",textAlign:"center"}}><CharacterPortrait universe="one_piece" name={auction.current_character.search_name??auction.current_character.name} label={auction.current_character.name}/><h2 className="pokemon-name">{auction.current_character.name}</h2></div>}
+      {auction.current_character&&(!introVideo||introFinished)&&<div className="pokemon-card" style={{margin:"16px 0",textAlign:"center"}}><CharacterPortrait universe="one_piece" name={auction.current_character.search_name??auction.current_character.name} label={auction.current_character.name}/><h2 className="pokemon-name">{auction.current_character.name}</h2></div>}
       {auction.phase==="bidding"&&<div className="notice"><b>{auction.current_bid===0&&auction.high_bidder_id===null?`${turnPlayer?.nickname??"Le joueur désigné"} doit ouvrir l’enchère.`:auction.current_bid===0&&leader?`${leader.nickname} ouvre automatiquement à 0.`:leader?`${leader.nickname} propose ${money.format(auction.current_bid)}.`:"Enchère en cours."}</b><p>{auction.current_bid===0&&auction.high_bidder_id===null?"Mise d’ouverture minimale : 10.":auction.current_bid===0&&leader?`${turnPlayer?.nickname??"L’adversaire"} peut passer et lui laisser le personnage gratuitement, ou miser au moins 10 pour le prendre.`:`À ${turnPlayer?.nickname??"l’adversaire"} de surenchérir d’au moins 10 ou de passer.`} Pas de minuterie pendant les mises.</p></div>}
       {auction.phase==="autopick"&&<div className="notice"><b>Équipe complète.</b><p>Les personnages restants vont gratuitement à {autopickPlayer?.nickname??"l’autre joueur"}, un toutes les 5 secondes. Prochain personnage dans {auction.autopick_at?Math.max(0,Math.ceil((new Date(auction.autopick_at).getTime()-Date.now())/1000)):5} s.</p></div>}
       <div className="columns" style={{marginTop:14}}><article className="option"><div className="history-head"><h3 className="section-title">{me?.nickname} (vous)</h3><span className="pill">{currentTeam?.characters.length??0}/5</span></div><b className="budget">{money.format(me?.budget??0)} restants</b></article><article className="option"><div className="history-head"><h3 className="section-title">{opponent?.nickname??"Adversaire"}</h3><span className="pill">{auction.teams.find(team=>team.user_id===opponent?.user_id)?.characters.length??0}/5</span></div><b className="budget">{money.format(opponent?.budget??0)} restants</b></article></div>
