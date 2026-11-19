@@ -30,11 +30,28 @@ export type OnePieceAuctionState = {
   history: Array<{ auction_no: number; id: string; name: string; search_name?: string; owner_id: string; owner_name: string; price: number }>;
   bids: Array<{ id: string; user_id: string; nickname: string; amount: number; created_at: string }>;
 };
+export type OnePieceStatKey = "strength" | "speed" | "iq" | "resistance" | "devil_fruit" | "race" | "haki" | "weapon";
+export type OnePieceStatsState = {
+  phase: "pick" | "finished";
+  pick_no: number;
+  active_player_id: string;
+  forced_player_id: string | null;
+  current_character: OnePieceCharacter | null;
+  is_active_player: boolean;
+  is_forced_player: boolean;
+  teams: Array<{
+    user_id: string;
+    nickname: string;
+    stats: Record<OnePieceStatKey, OnePieceCharacter[]>;
+  }>;
+  history: Array<{ pick_no: number; id: string; name: string; search_name?: string; owner_id: string; stat_key: OnePieceStatKey; forced: boolean }>;
+};
 export type RoomState = {
-  room: { id: string; code: string; status: "waiting" | "active" | "finished" | "abandoned"; mode: "turn_based" | "blind" | "clue_roulette" | "one_piece_draft" | "one_piece_auction" | "demon_slayer_draft" | "dragon_ball_draft" | "jujutsu_kaisen_draft" | "bleach_draft"; round_no: number; round_total: number; opens_at: string | null; deadline_at: string | null; admin_round: boolean; current_turn_user_id: string | null; current_price: number; current_pokemon: Pokemon | null; starter_user_id: string | null; clue: { number: 1 | 2 | 3 | 4 | 5 | 6; label: string; value?: string | number | string[] | null; unit?: string; weight_kg?: number | null; types?: string[] } | null; result: { winner_id: string | null; price: number } | null };
+  room: { id: string; code: string; status: "waiting" | "active" | "finished" | "abandoned"; mode: "turn_based" | "blind" | "clue_roulette" | "one_piece_draft" | "one_piece_auction" | "one_piece_stats" | "demon_slayer_draft" | "dragon_ball_draft" | "jujutsu_kaisen_draft" | "bleach_draft"; round_no: number; round_total: number; opens_at: string | null; deadline_at: string | null; admin_round: boolean; current_turn_user_id: string | null; current_price: number; current_pokemon: Pokemon | null; starter_user_id: string | null; clue: { number: 1 | 2 | 3 | 4 | 5 | 6; label: string; value?: string | number | string[] | null; unit?: string; weight_kg?: number | null; types?: string[] } | null; result: { winner_id: string | null; price: number } | null };
   players: Player[]; bids: PublicBid[]; user_id: string; collection: Array<{pokemon:Pokemon; owner_id:string; owner_name:string; price:number}>;
   one_piece?: OnePieceDraftState | null;
   one_piece_auction?: OnePieceAuctionState | null;
+  one_piece_stats?: OnePieceStatsState | null;
   demon_slayer?: OnePieceDraftState | null;
   dragon_ball?: OnePieceDraftState | null;
   jujutsu_kaisen?: OnePieceDraftState | null;
