@@ -1,7 +1,7 @@
 type ImageResult = { image_url: string | null; image_urls: string[] };
 type JikanCharacter = { name?: string; nicknames?: string[]; images?: { webp?: { image_url?: string | null }; jpg?: { image_url?: string | null } } };
 
-"const aliases": Record<string, string[]> = {
+const aliases: Record<string, string[]> = {
   rimurutempest: ["Rimuru Tempest", "Rimuru"], anosvoldigoad: ["Anos Voldigoad"],
   wanglingthedailyoftheimmortalking: ["Wang Ling", "Wang Ling The Daily Life of the Immortal King"],
   gilgameshfate: ["Gilgamesh Fate", "Gilgamesh"], artoriapendragonfate: ["Artoria Pendragon", "Saber Fate Stay Night", "Saber"],
