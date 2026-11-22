@@ -54,11 +54,16 @@ export async function GET(request: Request) {
   // A second character catalog covers common aliases that the first one may not index.
   for (const search of names) {
     try {
-      const response = await fetch(
-        `https://api.jikan.moe/v4/characters?q=${encodeURIComponent(search)}&limit=10`,
-        { next: { revalidate: 86400 } },
-      );
-      if (!response.ok) continue;
+      let response: Response | null = null;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        response = await fetch(
+          `https://api.jikan.moe/v4/characters?q=${encodeURIComponent(search)}&limit=10`,
+          { next: { revalidate: 86400 }, signal: AbortSignal.timeout(7000) },
+        );
+        if (response.status !== 429 || attempt === 1) break;
+        await new Promise((resolve) => setTimeout(resolve, 900));
+      }
+      if (!response?.ok) continue;
       const payload = await response.json() as { data?: JikanCharacter[] };
       const match = payload.data?.find((character) => {
         const candidates = [character.name, ...(character.nicknames ?? [])].filter((value): value is string => Boolean(value));
@@ -73,7 +78,7 @@ export async function GET(request: Request) {
     } catch { /* Keep trying aliases; the UI has a portrait placeholder. */ }
   }
 
-  return Response.json({ image_url: null }, { headers: { "Cache-Control": "public, max-age=3600" } });
+  return Response.json({ image_url: null }, { headers: { "Cache-Control": "no-store" } });
 }
 
 async function imageResponse(imageUrl: string) {
