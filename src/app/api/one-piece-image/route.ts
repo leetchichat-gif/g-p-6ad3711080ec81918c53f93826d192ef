@@ -61,7 +61,11 @@ export async function GET(request: Request) {
         // Prefer the provider's own image CDN over legacy image_url values that
         // may still point at the deleted Supabase project.
         const imageUrls = [
-          match.id ? `https://www.onepieceapi.com/api/images/${encodeURIComponent(match.id)}.jpeg` : null,
+          // The documented CDN path uses IDs like "c-1". Do not invent this
+          // URL for UUID-based IDs: that produces a non-null but often broken URL.
+          match.id && /^c-\d+$/.test(match.id)
+            ? `https://www.onepieceapi.com/api/images/${encodeURIComponent(match.id)}.jpeg`
+            : null,
           match.image_url,
           match.image,
         ].filter((value): value is string => isHttpsImage(value));
