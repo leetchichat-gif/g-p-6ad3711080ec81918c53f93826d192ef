@@ -103,7 +103,10 @@ export async function GET(request: Request) {
   // Avoid the dead image host used by the old character catalog; use a separate image CDN.
   for (const search of names) {
     const imageUrl = await aniListOnePieceImage(search);
-    if (imageUrl) return imageResponse(imageUrl);
+    if (imageUrl) {
+      const result = await imageResponse(imageUrl);
+      if (result) return result;
+    }
   }
 
   return Response.json({ image_url: null }, { headers: { "Cache-Control": "no-store" } });
