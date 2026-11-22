@@ -7,6 +7,19 @@ import type { OnePieceStatKey, RoomState } from "@/lib/types";
 
 const ROOM_KEY = "pokedraft-room-id", NICK_KEY = "pokedraft-nickname";
 const money = new Intl.NumberFormat("fr-FR");
+let portraitFetchChain: Promise<unknown> = Promise.resolve();
+let portraitLastRequestAt = 0;
+function fetchPortraitData(url:string) {
+  const request=portraitFetchChain.then(async()=>{
+    const delay=Math.max(0,450-(Date.now()-portraitLastRequestAt));
+    if(delay)await new Promise(resolve=>window.setTimeout(resolve,delay));
+    portraitLastRequestAt=Date.now();
+    const response=await fetch(url);
+    return response.ok?response.json():null;
+  });
+  portraitFetchChain=request.then(()=>undefined,()=>undefined);
+  return request;
+}
 type AuctionResult={round_no:number;pokemon:{display_name:string;sprite:string};winner_id:string|null;winner_name:string|null;price:number};
 
 export default function Home() {
@@ -174,7 +187,7 @@ function CharacterAuctionGame({state,auction,loading,onBid,onPass,universe}:{sta
     <div className="history-head"><div><div className="eyebrow">{universe==="one_piece"?"🏴‍☠️ One Piece":"✨ Anime OP"} · enchères publiques</div><h2 className="section-title">Personnage {auction.auction_no}/10</h2></div><span className="pill">{auction.phase==="autopick"?"Attribution auto · 5 s":"Mises sans timer"}</span></div>
     {auction.phase==="finished"?<div className="notice"><b>Enchères terminées !</b><p>Chaque joueur a constitué son équipage de cinq personnages.</p></div>:<>
       {auction.current_character&&introVideo&&!introFinished&&<div className="pokemon-card" style={{margin:"16px 0",textAlign:"center",padding:16}}><p className="hint">Extrait d’entrée de {auction.current_character.name} · le lecteur peut demander un clic sur ▶ pour démarrer le son.</p><video key={introVideo} src={introVideo} controls autoPlay playsInline onEnded={()=>setIntroFinished(true)} onError={()=>setIntroFinished(true)} style={{display:"block",width:"100%",maxHeight:420,margin:"0 auto",borderRadius:14,background:"#050914"}}/></div>}
-      {auction.current_character&&(!introVideo||introFinished)&&<div className="pokemon-card" style={{margin:"16px 0",textAlign:"center"}}><CharacterPortrait universe={universe} name={auction.current_character.search_name??auction.current_character.name} label={auction.current_character.name}/><h2 className="pokemon-name">{auction.current_character.name}</h2></div>}
+      {auction.current_character&&(!introVideo||introFinished)&&<div className="pokemon-card" style={{margin:"16px 0",textAlign:"center"}}><CharacterPortrait universe={universe} name={universe==="anime"?auction.current_character.name:auction.current_character.search_name??auction.current_character.name} searchName={auction.current_character.search_name} label={auction.current_character.name}/><h2 className="pokemon-name">{auction.current_character.name}</h2></div>}
       {auction.phase==="bidding"&&<div className="notice"><b>{auction.current_bid===0&&auction.high_bidder_id===null?`${turnPlayer?.nickname??"Le joueur désigné"} doit ouvrir l’enchère.`:auction.current_bid===0&&leader?`${leader.nickname} ouvre automatiquement à 0.`:leader?`${leader.nickname} propose ${money.format(auction.current_bid)}.`:"Enchère en cours."}</b><p>{auction.current_bid===0&&auction.high_bidder_id===null?"Mise d’ouverture minimale : 10.":auction.current_bid===0&&leader?`${turnPlayer?.nickname??"L’adversaire"} peut passer et lui laisser le personnage gratuitement, ou miser au moins 10 pour le prendre.`:`À ${turnPlayer?.nickname??"l’adversaire"} de surenchérir d’au moins 10 ou de passer.`} Pas de minuterie pendant les mises.</p></div>}
       {auction.phase==="autopick"&&<div className="notice"><b>Équipe complète.</b><p>Les personnages restants vont gratuitement à {autopickPlayer?.nickname??"l’autre joueur"}, un toutes les 5 secondes. Prochain personnage dans {auction.autopick_at?Math.max(0,Math.ceil((new Date(auction.autopick_at).getTime()-Date.now())/1000)):5} s.</p></div>}
       {state.room.status==="abandoned"&&<p className="notice error">Partie interrompue : les enchères sont fermées.</p>}
@@ -182,7 +195,7 @@ function CharacterAuctionGame({state,auction,loading,onBid,onPass,universe}:{sta
       {state.room.status==="active"&&auction.phase==="bidding"&&!auction.is_current_turn&&<p className="notice">En attente de {turnPlayer?.nickname??"l’autre joueur"}… Aucun timer ne mettra fin à l’enchère.</p>}
       {auction.bids.length>0&&<div style={{marginTop:14}}><h3 className="section-title">Mises de ce personnage</h3><div className="bid-log">{[...auction.bids].reverse().map(bid=><div className="bid-line" key={bid.id}><span>{bid.nickname}</span><b>{money.format(bid.amount)}</b></div>)}</div></div>}
     </>}
-    <div className="columns" style={{marginTop:18}}>{orderedTeams.map(team=>{const characters=team.characters.filter(character=>character.id!==currentCharacterId);return <article className="option" key={team.user_id}><div className="history-head"><div><h3 className="section-title">{universe==="one_piece"?"Équipage":"Équipe"} de {team.nickname}{team.user_id===state.user_id?" (vous)":""}</h3><b className="budget">{money.format(team.budget)} restants</b></div><span className="pill">{team.characters.length}/5</span></div>{characters.length?<div className="collection">{characters.map(character=><div className="owned" key={character.id}><CharacterPortrait universe={universe} name={character.search_name??character.name} label={character.name}/><p>{character.name}</p><small>{money.format(character.price)} dépensés</small></div>)}</div>:<p className="hint">{team.characters.length?"Le personnage courant est affiché au-dessus.":"Pas encore de personnage pour le moment."}</p>}</article>})}</div>
+    <div className="columns" style={{marginTop:18}}>{orderedTeams.map(team=>{const characters=team.characters.filter(character=>character.id!==currentCharacterId);return <article className="option" key={team.user_id}><div className="history-head"><div><h3 className="section-title">{universe==="one_piece"?"Équipage":"Équipe"} de {team.nickname}{team.user_id===state.user_id?" (vous)":""}</h3><b className="budget">{money.format(team.budget)} restants</b></div><span className="pill">{team.characters.length}/5</span></div>{characters.length?<div className="collection">{characters.map(character=><div className="owned" key={character.id}><CharacterPortrait universe={universe} name={universe==="anime"?character.name:character.search_name??character.name} searchName={character.search_name} label={character.name}/><p>{character.name}</p><small>{money.format(character.price)} dépensés</small></div>)}</div>:<p className="hint">{team.characters.length?"Le personnage courant est affiché au-dessus.":"Pas encore de personnage pour le moment."}</p>}</article>})}</div>
   </section>;
 }
 
@@ -242,9 +255,9 @@ function CharacterDraftGame({state,draft,now,loading,universe,onDraw,onDecide}:{
   </section>;
 }
 
-function CharacterPortrait({universe,name,label}:{universe:"one_piece"|"anime"|"demon_slayer"|"dragon_ball"|"jujutsu_kaisen"|"bleach";name:string;label:string}){
+function CharacterPortrait({universe,name,label,searchName}:{universe:"one_piece"|"anime"|"demon_slayer"|"dragon_ball"|"jujutsu_kaisen"|"bleach";name:string;label:string;searchName?:string}){
   const [images,setImages]=useState<string[]>([]),[imageIndex,setImageIndex]=useState(0);
-  useEffect(()=>{let cancelled=false;setImages([]);setImageIndex(0);const route=universe==="anime"?"anime-character-image":universe==="one_piece"?"one-piece-image":universe==="demon_slayer"?"demon-slayer-image":universe==="dragon_ball"?"dragon-ball-image":universe==="jujutsu_kaisen"?"jujutsu-kaisen-image":"bleach-image";fetch(`/api/${route}?name=${encodeURIComponent(name)}`).then(response=>response.ok?response.json():null).then(data=>{if(cancelled)return;const candidates:string[]=[];if(Array.isArray(data?.image_urls)){for(const value of data.image_urls){if(typeof value==="string")candidates.push(value);}}if(typeof data?.image_url==="string")candidates.unshift(data.image_url);const uniqueCandidates:string[]=candidates.filter((value,index)=>candidates.indexOf(value)===index);setImages(uniqueCandidates);}).catch(()=>{});return()=>{cancelled=true;};},[universe,name]);
+  useEffect(()=>{let cancelled=false;setImages([]);setImageIndex(0);const route=universe==="anime"?"anime-character-image":universe==="one_piece"?"one-piece-image":universe==="demon_slayer"?"demon-slayer-image":universe==="dragon_ball"?"dragon-ball-image":universe==="jujutsu_kaisen"?"jujutsu-kaisen-image":"bleach-image";const query=`name=${encodeURIComponent(name)}${universe==="anime"&&searchName?`&series=${encodeURIComponent(searchName)}`:""}`;const url=`/api/${route}?${query}`;const imageRequest=universe==="anime"?fetchPortraitData(url):fetch(url).then(response=>response.ok?response.json():null);imageRequest.then(data=>{if(cancelled)return;const candidates:string[]=[];if(Array.isArray(data?.image_urls)){for(const value of data.image_urls){if(typeof value==="string")candidates.push(value);}}if(typeof data?.image_url==="string")candidates.unshift(data.image_url);const uniqueCandidates:string[]=candidates.filter((value,index)=>candidates.indexOf(value)===index);setImages(uniqueCandidates);}).catch(()=>{});return()=>{cancelled=true;};},[universe,name,searchName]);
   const image=images[imageIndex];
   return image?<img src={image} alt={label} loading="lazy" referrerPolicy="no-referrer" onError={()=>setImageIndex(index=>index+1)} style={{display:"block",width:"100%",height:170,objectFit:"contain",margin:"8px auto"}}/>:<div role="img" aria-label={label} style={{display:"grid",placeItems:"center",height:170,fontSize:48}}>{universe==="anime"?"✨":universe==="one_piece"?"🏴‍☠️":universe==="demon_slayer"?"⚔️":universe==="dragon_ball"?"🐉":universe==="jujutsu_kaisen"?"👊":"⚔️"}</div>;
 }
