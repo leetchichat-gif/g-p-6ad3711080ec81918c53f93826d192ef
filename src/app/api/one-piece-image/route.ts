@@ -44,7 +44,10 @@ export async function GET(request: Request) {
         const apiName = typeof row.name === "string" ? row.name : row.name?.en ?? row.name?.romaji ?? "";
         return normalized(apiName) === normalized(search) && isHttpsImage(row.image_url);
       });
-      if (match?.image_url) return imageResponse(match.image_url);
+      if (match?.image_url) {
+        const result = await imageResponse(match.image_url);
+        if (result) return result;
+      }
     } catch { /* Try the next known name. */ }
   }
 
@@ -63,15 +66,47 @@ export async function GET(request: Request) {
           && isHttpsImage(character.images?.jpg?.image_url);
       });
       const imageUrl = match?.images?.jpg?.image_url;
-      if (isHttpsImage(imageUrl)) return imageResponse(imageUrl);
+      if (isHttpsImage(imageUrl)) {
+        const result = await imageResponse(imageUrl);
+        if (result) return result;
+      }
     } catch { /* Keep trying aliases; the UI has a portrait placeholder. */ }
   }
 
   return Response.json({ image_url: null }, { headers: { "Cache-Control": "public, max-age=3600" } });
 }
 
-function imageResponse(imageUrl: string) {
-  return Response.json({ image_url: imageUrl }, {
-    headers: { "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800" },
+async function imageResponse(imageUrl: string) {
+  const correctedUrl = currentProjectStorageUrl(imageUrl);
+  if (correctedUrl !== imageUrl) {
+    try {
+      const check = await fetch(correctedUrl, {
+        method: "HEAD",
+        next: { revalidate: 86400 },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!check.ok) return null;
+    } catch {
+      return null;
+    }
+  }
+  return Response.json({ image_url: correctedUrl }, {
+    headers: { "Cache-Control": "no-store" },
   });
+}
+
+function currentProjectStorageUrl(imageUrl: string) {
+  const currentProjectUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!currentProjectUrl) return imageUrl;
+  try {
+    const image = new URL(imageUrl);
+    const project = new URL(currentProjectUrl);
+    if (image.hostname.endsWith(".supabase.co")
+      && image.pathname.startsWith("/storage/v1/object/public/")) {
+      image.protocol = project.protocol;
+      image.host = project.host;
+      return image.toString();
+    }
+  } catch { /* Keep the source URL if either address is malformed. */ }
+  return imageUrl;
 }
